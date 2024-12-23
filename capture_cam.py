@@ -32,21 +32,39 @@ class CameraManager:
         for camera in self.camera_arr:
             camera.destroy()
 
-def display_images(camera_queues):
+    def get_global_loc(self):
+        return [(camera.get_location().x, 
+                 camera.get_location().y, 
+                 camera.get_location().z) for camera in self.camera_arr]
+
+
+def display_images(camera_queues, combined_img):
     while not exit_event.is_set():
+        
         for idx, image_queue in enumerate(camera_queues):
             if not image_queue.empty():
                 image = image_queue.get()
                 array = np.frombuffer(image.raw_data, dtype=np.uint8)
                 array = array.reshape((image.height, image.width, 4))  # BGRA
                 rgb_image = array[:, :, :3]  # BGR
-                cv2.imshow(f"Camera RGB_{idx}", rgb_image)
+                col_idx = idx // 3
+                row_idx = idx % 3
+                combined_img[CAM_HEIGHT*col_idx:CAM_HEIGHT*(col_idx+1), CAM_WIDTH*row_idx:CAM_WIDTH*(row_idx+1)] = rgb_image
+        cv2.imshow(f"Camera RGB_{idx}", combined_img)
         if cv2.waitKey(1) == ord('q'):
             exit_event.set()
             break
     cv2.destroyAllWindows()
 
+def show_location(camera_manager):
+    while not exit_event.is_set():
+        time.sleep(0.5)
+        print('vehicle loc:', [round(loc, 3) for loc in camera_manager.get_global_loc()[0]])
+
 if __name__ == '__main__':
+    CAM_WIDTH = 640
+    CAM_HEIGHT = 360
+
     client = carla.Client('localhost', 2000)
     client.set_timeout(10.0)
     world = client.get_world()
@@ -59,20 +77,29 @@ if __name__ == '__main__':
     vehicle = actors.filter('vehicle.*')[0]
 
     camera_bp = blueprint_library.find('sensor.camera.rgb')
-    camera_bp.set_attribute('image_size_x', '800')
-    camera_bp.set_attribute('image_size_y', '600')
+    camera_bp.set_attribute('image_size_x', f'{CAM_WIDTH}')
+    camera_bp.set_attribute('image_size_y', f'{CAM_HEIGHT}')
     camera_bp.set_attribute('fov', '90')
-    cameras_transform = [carla.Transform(carla.Location(x=1.3, z=2.4)), 
-                         carla.Transform(carla.Location(x=1.3, y=2, z=2.4), carla.Rotation(yaw=70)),
-                         carla.Transform(carla.Location(x=1.3, y=-2, z=2.4), carla.Rotation(yaw=-70))]
+    cameras_transform = [
+        carla.Transform(carla.Location(x=1.3, y=-2, z=2.4), carla.Rotation(yaw=-70)), # FRONT_LEFT
+        carla.Transform(carla.Location(x=1.3, z=2.4), carla.Rotation(yaw=0)),         # FRONT
+        carla.Transform(carla.Location(x=1.3, y=2, z=2.4), carla.Rotation(yaw=70)),   # FRONT_RIGHT
+        carla.Transform(carla.Location(x=-3.3, y=-2, z=2.4), carla.Rotation(yaw=-140)),   # BACK_LEFT
+        carla.Transform(carla.Location(x=-3.3, z=2.4), carla.Rotation(yaw=180)),       # BACK
+        carla.Transform(carla.Location(x=-3.3, y=2, z=2.4), carla.Rotation(yaw=140)), # BACK_RIGHT
+                         ]
 
     cam_manager = CameraManager(camera_bp, world)
     cam_manager.set_cams(vehicle, cameras_transform)
     cam_manager.listen()
 
+    init_combined_img = np.zeros((CAM_HEIGHT*2, CAM_WIDTH*3, 3), dtype=np.uint8)
 
-    display_thread = threading.Thread(target=display_images, args=(cam_manager.img_queue_arr,), daemon=True)
+    display_thread = threading.Thread(target=display_images, args=(cam_manager.img_queue_arr,init_combined_img), daemon=True)
     display_thread.start()
+
+    location_thread = threading.Thread(target=show_location, args=(cam_manager,), daemon=True)
+    location_thread.start()
 
     try:
         while not exit_event.is_set():
