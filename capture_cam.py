@@ -7,6 +7,35 @@ import time
 
 exit_event = threading.Event()
 
+def euler_to_rotation_matrix(roll, pitch, yaw):
+    # Convert angles to radians if they are in degrees
+    roll = np.radians(roll)
+    pitch = np.radians(pitch)
+    yaw = np.radians(yaw)
+    
+    # Rotation matrices
+    R_x = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll), np.cos(roll)]
+    ])
+    
+    R_y = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+    
+    R_z = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+    
+    # Final rotation matrix (adjust order if needed)
+    R = R_z @ R_y @ R_x
+    return R
+
 def process_image(image_queue, image):
     if not image_queue.full():
         image_queue.put(image)
@@ -33,9 +62,14 @@ class CameraManager:
             camera.destroy()
 
     def get_global_loc(self):
-        return [(camera.get_location().x, 
-                 camera.get_location().y, 
-                 camera.get_location().z) for camera in self.camera_arr]
+        return [(camera.get_transform().location.x, 
+                 camera.get_transform().location.y, 
+                 camera.get_transform().location.z) for camera in self.camera_arr]
+    
+    def get_rot_mat(self):
+        return [euler_to_rotation_matrix(camera.get_transform().rotation.roll, 
+                                         camera.get_transform().rotation.pitch, 
+                                         camera.get_transform().rotation.yaw) for camera in self.camera_arr]
 
 
 def display_images(camera_queues, combined_img):
@@ -60,6 +94,7 @@ def show_location(camera_manager):
     while not exit_event.is_set():
         time.sleep(0.5)
         print('vehicle loc:', [round(loc, 3) for loc in camera_manager.get_global_loc()[0]])
+        print('vehicle rot:', camera_manager.get_rot_mat()[0])
 
 if __name__ == '__main__':
     CAM_WIDTH = 640
