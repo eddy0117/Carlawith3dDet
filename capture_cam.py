@@ -4,41 +4,13 @@ import cv2
 import threading
 import queue
 import time
+from utils import euler_to_rotation_matrix, display_images, show_location, process_image
 
 exit_event = threading.Event()
 
-def euler_to_rotation_matrix(roll, pitch, yaw):
-    # Convert angles to radians if they are in degrees
-    roll = np.radians(roll)
-    pitch = np.radians(pitch)
-    yaw = np.radians(yaw)
-    
-    # Rotation matrices
-    R_x = np.array([
-        [1, 0, 0],
-        [0, np.cos(roll), -np.sin(roll)],
-        [0, np.sin(roll), np.cos(roll)]
-    ])
-    
-    R_y = np.array([
-        [np.cos(pitch), 0, np.sin(pitch)],
-        [0, 1, 0],
-        [-np.sin(pitch), 0, np.cos(pitch)]
-    ])
-    
-    R_z = np.array([
-        [np.cos(yaw), -np.sin(yaw), 0],
-        [np.sin(yaw), np.cos(yaw), 0],
-        [0, 0, 1]
-    ])
-    
-    # Final rotation matrix (adjust order if needed)
-    R = R_z @ R_y @ R_x
-    return R
 
-def process_image(image_queue, image):
-    if not image_queue.full():
-        image_queue.put(image)
+
+
 
 class CameraManager:
     def __init__(self, camera_bp, world):
@@ -72,29 +44,7 @@ class CameraManager:
                                          camera.get_transform().rotation.yaw) for camera in self.camera_arr]
 
 
-def display_images(camera_queues, combined_img):
-    while not exit_event.is_set():
-        
-        for idx, image_queue in enumerate(camera_queues):
-            if not image_queue.empty():
-                image = image_queue.get()
-                array = np.frombuffer(image.raw_data, dtype=np.uint8)
-                array = array.reshape((image.height, image.width, 4))  # BGRA
-                rgb_image = array[:, :, :3]  # BGR
-                col_idx = idx // 3
-                row_idx = idx % 3
-                combined_img[CAM_HEIGHT*col_idx:CAM_HEIGHT*(col_idx+1), CAM_WIDTH*row_idx:CAM_WIDTH*(row_idx+1)] = rgb_image
-        cv2.imshow(f"Camera RGB_{idx}", combined_img)
-        if cv2.waitKey(1) == ord('q'):
-            exit_event.set()
-            break
-    cv2.destroyAllWindows()
 
-def show_location(camera_manager):
-    while not exit_event.is_set():
-        time.sleep(0.5)
-        print('vehicle loc:', [round(loc, 3) for loc in camera_manager.get_global_loc()[0]])
-        print('vehicle rot:', camera_manager.get_rot_mat()[0])
 
 if __name__ == '__main__':
     CAM_WIDTH = 640
@@ -114,7 +64,11 @@ if __name__ == '__main__':
     camera_bp = blueprint_library.find('sensor.camera.rgb')
     camera_bp.set_attribute('image_size_x', f'{CAM_WIDTH}')
     camera_bp.set_attribute('image_size_y', f'{CAM_HEIGHT}')
-    camera_bp.set_attribute('fov', '90')
+    camera_bp.set_attribute('fov', '70')
+    camera_bp_rear = blueprint_library.find('sensor.camera.rgb')
+    camera_bp_rear.set_attribute('image_size_x', f'{CAM_WIDTH}')
+    camera_bp_rear.set_attribute('image_size_y', f'{CAM_HEIGHT}')
+    camera_bp_rear.set_attribute('fov', '90')
     cameras_transform = [
         carla.Transform(carla.Location(x=1.3, y=-2, z=2.4), carla.Rotation(yaw=-70)), # FRONT_LEFT
         carla.Transform(carla.Location(x=1.3, z=2.4), carla.Rotation(yaw=0)),         # FRONT
@@ -130,10 +84,10 @@ if __name__ == '__main__':
 
     init_combined_img = np.zeros((CAM_HEIGHT*2, CAM_WIDTH*3, 3), dtype=np.uint8)
 
-    display_thread = threading.Thread(target=display_images, args=(cam_manager.img_queue_arr,init_combined_img), daemon=True)
+    display_thread = threading.Thread(target=display_images, args=(cam_manager.img_queue_arr,init_combined_img, CAM_HEIGHT, CAM_WIDTH, exit_event), daemon=True)
     display_thread.start()
 
-    location_thread = threading.Thread(target=show_location, args=(cam_manager,), daemon=True)
+    location_thread = threading.Thread(target=show_location, args=(cam_manager, exit_event), daemon=True)
     location_thread.start()
 
     try:
