@@ -103,6 +103,14 @@ class CameraManager:
                                                  [0, 0, 1]]))
         
         return self.cam_intrinsics
+    
+    def get_cams_ego_loc(self):
+        # cam 2 ego t
+        return [param[0] for param in self.cam_params]
+    
+    def get_cams_ego_rot(self):
+        # cam 2 ego r
+        return [euler_to_rotation_matrix(*param[1]) for param in self.cam_params]
 
 
 if __name__ == '__main__':
