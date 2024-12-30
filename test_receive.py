@@ -42,6 +42,8 @@ if __name__ == "__main__":
                 whole_data += data_split[0]
     
                 img_data = whole_data.split(b"\1")[1:-1]
+                json_data = whole_data.split(b"\1")[0]
+             
 
                 for i, single_img_data in enumerate(img_data):
                     single_img_data = base64.b64decode(single_img_data)
@@ -49,6 +51,9 @@ if __name__ == "__main__":
                     single_img = cv2.imdecode(single_img, cv2.IMREAD_COLOR)
                     
                     cv2.imwrite(f"Image_{i}.jpg", single_img)
+       
+                json_data = json.loads(json_data.decode("utf-8"))
+                print(json_data)
 
                 # dict_data = json.loads(whole_data.split(b"\1")[0].decode("utf-8"))
                 # print(dict_data)

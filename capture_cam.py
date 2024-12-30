@@ -79,13 +79,13 @@ class CameraManager:
                                          camera.get_transform().rotation.pitch, 
                                          camera.get_transform().rotation.yaw) for camera in self.camera_arr]
 
-    def get_veh_global_loc(self):
+    def get_ego_global_loc(self):
         # ego 2 global t
         return (self.tar_car.get_transform().location.x, 
                 self.tar_car.get_transform().location.y, 
                 self.tar_car.get_transform().location.z)
     
-    def get_veh_rot_mat(self):
+    def get_ego_global_rot_mat(self):
         # ego 2 global r
         return euler_to_rotation_matrix(self.tar_car.get_transform().rotation.roll, 
                                         self.tar_car.get_transform().rotation.pitch, 
@@ -125,10 +125,6 @@ if __name__ == '__main__':
             vehicle = actor
             break
     
-    
-    cam_bp_70 = cam_bp_maker(blueprint_library, CAM_WIDTH, CAM_HEIGHT, 70)
-    cam_bp_110 = cam_bp_maker(blueprint_library, CAM_WIDTH, CAM_HEIGHT, 110)
-    
 
     cameras_params_list = [
         # (x, y, z), (roll, pitch, yaw), (W, H, FOV)
@@ -155,7 +151,7 @@ if __name__ == '__main__':
     #                                                                exit_event), daemon=True)
     # display_thread.start()
 
-    send_thread = threading.Thread(target=packed_data_send, args=(cam_manager.img_queue_arr, 
+    send_thread = threading.Thread(target=packed_data_send, args=(cam_manager, 
                                                                     CAM_HEIGHT, 
                                                                     CAM_WIDTH, 
                                                                     exit_event), daemon=True)
