@@ -12,7 +12,7 @@ ip = "127.0.0.1"
 port = 65432
 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
 
-def packed_data_send(camera_queues, combined_img, CAM_HEIGHT, CAM_WIDTH, exit_event):
+def packed_data_send(camera_queues, CAM_HEIGHT, CAM_WIDTH, exit_event):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((ip, port))
     img_arr = [np.zeros((CAM_HEIGHT, CAM_WIDTH, 3), dtype=np.uint8) for _ in range(6)]
@@ -62,7 +62,7 @@ def show_location(camera_manager, exit_event):
     while not exit_event.is_set():
         time.sleep(0.5)
         print('vehicle loc:', [round(loc, 3) for loc in camera_manager.get_cams_global_loc()[0]])
-        print('vehicle rot:', camera_manager.get_cams_rot_mat()[0])
+        print('vehicle rot:', camera_manager.get_cams_global_rot_mat()[0])
   
 
 def process_image(image_queue, image):

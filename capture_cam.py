@@ -7,6 +7,31 @@ import time
 from tools.thread_funcs import display_images, show_location, process_image, packed_data_send
 from tools.utils import euler_to_rotation_matrix, cam_bp_maker
 
+cam_intrinsics = [[[1.14251841e+03, 0.00000000e+00, 8.00000000e+02],
+                [0.00000000e+00, 1.14251841e+03, 4.50000000e+02],
+                [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]],
+
+                [[1.14251841e+03, 0.00000000e+00, 8.00000000e+02],
+                    [0.00000000e+00, 1.14251841e+03, 4.50000000e+02],
+                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]],
+
+                [[1.14251841e+03, 0.00000000e+00, 8.00000000e+02],
+                    [0.00000000e+00, 1.14251841e+03, 4.50000000e+02],
+                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]],
+
+                [[5.60166031e+02, 0.00000000e+00, 8.00000000e+02],
+                    [0.00000000e+00, 5.60166031e+02, 4.50000000e+02],
+                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]],
+
+                [[1.14251841e+03, 0.00000000e+00, 8.00000000e+02],
+                    [0.00000000e+00, 1.14251841e+03, 4.50000000e+02],
+                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]],
+
+                [[1.14251841e+03, 0.00000000e+00, 8.00000000e+02],
+                    [0.00000000e+00, 1.14251841e+03, 4.50000000e+02],
+                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]]
+
+
 exit_event = threading.Event()
 
 
@@ -43,26 +68,31 @@ class CameraManager:
             camera.destroy()
 
     def get_cams_global_loc(self):
+        # cam 2 global t
         return [(camera.get_transform().location.x, 
                  camera.get_transform().location.y, 
                  camera.get_transform().location.z) for camera in self.camera_arr]
     
-    def get_cams_rot_mat(self):
+    def get_cams_global_rot_mat(self):
+        # cam 2 global r
         return [euler_to_rotation_matrix(camera.get_transform().rotation.roll, 
                                          camera.get_transform().rotation.pitch, 
                                          camera.get_transform().rotation.yaw) for camera in self.camera_arr]
 
     def get_veh_global_loc(self):
+        # ego 2 global t
         return (self.tar_car.get_transform().location.x, 
                 self.tar_car.get_transform().location.y, 
                 self.tar_car.get_transform().location.z)
     
     def get_veh_rot_mat(self):
+        # ego 2 global r
         return euler_to_rotation_matrix(self.tar_car.get_transform().rotation.roll, 
                                         self.tar_car.get_transform().rotation.pitch, 
                                         self.tar_car.get_transform().rotation.yaw)
     
-    def get_cam_intrinsics(self):
+    def get_cams_intrinsics(self):
+        # all (6) cam 3x3 intrinsics
         self.cam_intrinsics = []
         cam_focus_length = [cam_param[2][0] / (2 * np.tan(cam_param[2][2] * np.pi / 360)) for cam_param in self.cam_params]
         cam_center_x = [cam_param[2][0] / 2 for cam_param in self.cam_params]
@@ -113,11 +143,11 @@ if __name__ == '__main__':
 
     cam_manager = CameraManager(world, vehicle, cameras_params_list)
     cam_manager.set_cams()
-    cam_manager.get_cam_intrinsics()
+    cam_manager.get_cams_intrinsics()
     cam_manager.listen()
 
     init_combined_img = np.zeros((CAM_HEIGHT*2, CAM_WIDTH*3, 3), dtype=np.uint8)
-
+    
     # display_thread = threading.Thread(target=display_images, args=(cam_manager.img_queue_arr, 
     #                                                                init_combined_img, 
     #                                                                CAM_HEIGHT, 
@@ -126,7 +156,6 @@ if __name__ == '__main__':
     # display_thread.start()
 
     send_thread = threading.Thread(target=packed_data_send, args=(cam_manager.img_queue_arr, 
-                                                                    init_combined_img, 
                                                                     CAM_HEIGHT, 
                                                                     CAM_WIDTH, 
                                                                     exit_event), daemon=True)
